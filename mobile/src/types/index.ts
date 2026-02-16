@@ -10,6 +10,15 @@ export interface User {
   updated_at: string;
 }
 
+// User profile (subset of User for updates)
+export interface UserProfile {
+  phone_model?: string;
+  vehicle_make?: string;
+  vehicle_model?: string;
+  vehicle_year?: number | null;
+}
+
+
 // Scan session types
 export interface ScanSession {
   id: string;

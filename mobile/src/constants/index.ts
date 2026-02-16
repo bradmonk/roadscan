@@ -16,6 +16,30 @@ export const ROUGHNESS_COLORS = {
   VERY_ROUGH: '#ef4444', // red
 };
 
+// Color palette
+export const Colors = {
+  primary: '#3b82f6', // blue
+  secondary: '#8b5cf6', // purple
+  success: '#22c55e', // green
+  warning: '#eab308', // yellow
+  error: '#ef4444', // red
+  background: '#f9fafb', // light gray
+  surface: '#ffffff', // white
+  border: '#e5e7eb', // gray
+  text: '#1f2937', // dark gray
+  textSecondary: '#6b7280', // medium gray
+  
+  // Roughness colors
+  roughness: {
+    excellent: '#22c55e', // green - 0-20
+    good: '#84cc16', // lime - 20-40
+    fair: '#eab308', // yellow - 40-60
+    poor: '#f97316', // orange - 60-80
+    veryPoor: '#ef4444', // red - 80-100
+  },
+};
+
+
 // Data retention
 export const LOCAL_DATA_RETENTION_HOURS = 24;
 

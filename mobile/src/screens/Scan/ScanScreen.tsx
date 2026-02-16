@@ -7,6 +7,7 @@ import { useSensorData } from '../../hooks/useSensorData';
 import { useLocation } from '../../hooks/useLocation';
 import { useRoughness } from '../../hooks/useRoughness';
 import { roughnessCalculator } from '../../services/roughness';
+import { syncService } from '../../services/sync';
 import { LocationData } from '../../types';
 
 type ScanState = 'idle' | 'scanning' | 'paused';
@@ -19,6 +20,8 @@ export default function ScanScreen() {
   const [lastSegmentLocation, setLastSegmentLocation] = useState<LocationData | null>(
     null
   );
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [allRoughnessScores, setAllRoughnessScores] = useState<number[]>([]);
 
   // Initialize hooks
   const {
@@ -60,7 +63,8 @@ export default function ScanScreen() {
       scanState === 'scanning' &&
       currentRoughness &&
       location &&
-      lastSegmentLocation
+      lastSegmentLocation &&
+      currentSessionId
     ) {
       const newSegment: RoadSegment = {
         coordinates: [
@@ -78,9 +82,21 @@ export default function ScanScreen() {
       };
 
       setSegments((prev) => [...prev, newSegment]);
+      setAllRoughnessScores((prev) => [...prev, currentRoughness.score]);
       setLastSegmentLocation(location);
+
+      // Save segment to database
+      syncService.saveScanSegment({
+        session_id: currentSessionId,
+        start_lat: lastSegmentLocation.latitude,
+        start_lng: lastSegmentLocation.longitude,
+        end_lat: location.latitude,
+        end_lng: location.longitude,
+        average_roughness: currentRoughness.score,
+        segment_duration_seconds: 5,
+      });
     }
-  }, [currentRoughness, location, lastSegmentLocation, scanState]);
+  }, [currentRoughness, location, lastSegmentLocation, scanState, currentSessionId]);
 
   // Handle start scan
   const handleStart = useCallback(async () => {
@@ -105,11 +121,24 @@ export default function ScanScreen() {
       }
     }
 
+    // Create new session in database
+    const sessionId = await syncService.saveScanSession({
+      started_at: new Date().toISOString(),
+      status: 'active',
+    });
+
+    if (!sessionId) {
+      Alert.alert('Error', 'Failed to start scan session');
+      return;
+    }
+
     // Start tracking
     setScanState('scanning');
+    setCurrentSessionId(sessionId);
     setScanStartTime(Date.now());
     setScanDuration(0);
     setSegments([]);
+    setAllRoughnessScores([]);
     setLastSegmentLocation(location);
     clearHistory();
     
@@ -146,9 +175,14 @@ export default function ScanScreen() {
       {
         text: 'Discard',
         style: 'destructive',
-        onPress: () => {
+        onPress: async () => {
+          if (currentSessionId) {
+            await syncService.deleteScanSession(currentSessionId);
+          }
           setScanState('idle');
+          setCurrentSessionId(null);
           setSegments([]);
+          setAllRoughnessScores([]);
           setScanDuration(0);
           stopTracking();
           stopSensors();
@@ -157,9 +191,24 @@ export default function ScanScreen() {
       },
       {
         text: 'Save',
-        onPress: () => {
-          // TODO: Save to database
+        onPress: async () => {
+          if (currentSessionId) {
+            // Calculate average roughness
+            const avgRoughness =
+              allRoughnessScores.length > 0
+                ? allRoughnessScores.reduce((a, b) => a + b, 0) / allRoughnessScores.length
+                : 0;
+
+            // End the session
+            await syncService.endScanSession(
+              currentSessionId,
+              totalDistance,
+              avgRoughness
+            );
+          }
+
           setScanState('idle');
+          setCurrentSessionId(null);
           setScanDuration(0);
           stopTracking();
           stopSensors();
@@ -169,6 +218,7 @@ export default function ScanScreen() {
               text: 'OK',
               onPress: () => {
                 setSegments([]);
+                setAllRoughnessScores([]);
                 clearHistory();
               },
             },
@@ -176,7 +226,8 @@ export default function ScanScreen() {
         },
       },
     ]);
-  }, [stopTracking, stopSensors, clearHistory]);
+  }, [currentSessionId, totalDistance, allRoughnessScores, stopTracking, stopSensors, clearHistory]);
+
 
   return (
     <View style={styles.container}>

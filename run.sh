@@ -61,14 +61,15 @@ echo ""
 echo "What would you like to do?"
 echo ""
 echo "1) Start mobile app development server"
-echo "2) Run on iOS simulator (Mac only)"
-echo "3) Run on Android emulator"
-echo "4) Install dependencies"
-echo "5) Clean and reinstall everything"
-echo "6) Check project status"
-echo "7) Exit"
+echo "2) Start with cache cleared (use after config changes)"
+echo "3) Run on iOS simulator (Mac only)"
+echo "4) Run on Android emulator"
+echo "5) Install dependencies"
+echo "6) Clean and reinstall everything"
+echo "7) Check project status"
+echo "8) Exit"
 echo ""
-read -p "Enter your choice (1-7): " choice
+read -p "Enter your choice (1-8): " choice
 
 case $choice in
     1)
@@ -76,26 +77,30 @@ case $choice in
         npm start --prefix mobile
         ;;
     2)
+        echo "🧹 Starting with cleared cache..."
+        npm start --prefix mobile -- --clear
+        ;;
+    3)
         echo "📱 Starting on iOS simulator..."
         npm run ios --prefix mobile
         ;;
-    3)
+    4)
         echo "🤖 Starting on Android emulator..."
         npm run android --prefix mobile
         ;;
-    4)
+    5)
         echo "📦 Installing dependencies..."
         npm install --prefix mobile
         echo "✅ Done!"
         ;;
-    5)
+    6)
         echo "🧹 Cleaning node_modules..."
         rm -rf mobile/node_modules
         echo "📦 Reinstalling dependencies..."
         npm install --prefix mobile
         echo "✅ Done!"
         ;;
-    6)
+    7)
         echo "📊 Project Status:"
         echo ""
         echo "Mobile App:"
@@ -127,7 +132,7 @@ case $choice in
             echo "  ⚠️  Admin dashboard not yet created"
         fi
         ;;
-    7)
+    8)
         echo "👋 Goodbye!"
         exit 0
         ;;

@@ -205,3 +205,66 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ============================================
+# Node.js and React Native / Expo
+# ============================================
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Metro bundler
+.metro-health-check*
+
+# Native builds
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+android/
+ios/
+
+# macOS
+.DS_Store
+*.pem
+
+# Temporary files
+*.tmp
+*.temp
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+
+# Testing
+coverage/
+
+# IDE
+.vscode/
+.idea/
+
+# Backend
+backend/.env
+backend/node_modules/
+
+# Admin Dashboard
+admin-dashboard/.env
+admin-dashboard/.next/
+admin-dashboard/node_modules/
+admin-dashboard/out/
+
+# Documentation (internal notes)
+docs/

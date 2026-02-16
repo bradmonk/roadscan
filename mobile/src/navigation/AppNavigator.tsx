@@ -4,13 +4,13 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
 
 // Import screens (will be created)
-import HomeScreen from '../screens/Home/HomeScreen';
-import ScanScreen from '../screens/Scan/ScanScreen';
-import HistoryScreen from '../screens/History/HistoryScreen';
-import GraphsScreen from '../screens/Graphs/GraphsScreen';
-import ResourcesScreen from '../screens/Resources/ResourcesScreen';
-import HelpScreen from '../screens/Help/HelpScreen';
-import AccountScreen from '../screens/Account/AccountScreen';
+import HomeScreen from '../screens/Home';
+import ScanScreen from '../screens/Scan';
+import HistoryScreen from '../screens/History';
+import GraphsScreen from '../screens/Graphs';
+import ResourcesScreen from '../screens/Resources';
+import HelpScreen from '../screens/Help';
+import AccountScreen from '../screens/Account';
 
 const Stack = createStackNavigator<RootStackParamList>();
 

@@ -265,6 +265,3 @@ admin-dashboard/.env
 admin-dashboard/.next/
 admin-dashboard/node_modules/
 admin-dashboard/out/
-
-# Documentation (internal notes)
-docs/

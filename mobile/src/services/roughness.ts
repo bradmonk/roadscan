@@ -1,4 +1,5 @@
 import { SensorReading } from '../types';
+import { getRoughnessColor } from '../constants';
 
 export interface RoughnessResult {
   score: number; // 0-100 scale
@@ -208,13 +209,11 @@ export class RoughnessCalculator {
   }
 
   /**
-   * Get color for roughness score (for map visualization)
+   * Get color for roughness score using Inferno colormap
+   * Provides perceptually uniform color gradient for scientific visualization
    */
   getColor(score: number): string {
-    if (score < this.SMOOTH_THRESHOLD) return '#22c55e'; // green
-    if (score < this.MODERATE_THRESHOLD) return '#eab308'; // yellow
-    if (score < this.ROUGH_THRESHOLD) return '#f97316'; // orange
-    return '#ef4444'; // red
+    return getRoughnessColor(score);
   }
 }
 

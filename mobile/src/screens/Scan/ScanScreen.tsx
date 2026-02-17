@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, TouchableOpacity, Text, Modal, ScrollView, SafeAreaView } from 'react-native';
 import RoadMapView, { RoadSegment } from '../../components/RoadMapView';
 import ScanControls from '../../components/ScanControls';
 import ScanStats from '../../components/ScanStats';
 import { useSensorData } from '../../hooks/useSensorData';
 import { useLocation } from '../../hooks/useLocation';
 import { useRoughness } from '../../hooks/useRoughness';
+import { useMockMode } from '../../hooks/useMockMode';
 import { roughnessCalculator } from '../../services/roughness';
 import { syncService } from '../../services/sync';
 import { LocationData } from '../../types';
+import { Colors } from '../../constants';
+import { testScenarios } from '../../services/mockData';
 
 type ScanState = 'idle' | 'scanning' | 'paused';
 
@@ -22,14 +25,22 @@ export default function ScanScreen() {
   );
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [allRoughnessScores, setAllRoughnessScores] = useState<number[]>([]);
+  const [showDevMenu, setShowDevMenu] = useState(false);
 
-  // Initialize hooks
+  // Mock mode hook
+  const { isMockMode, mockScenario, toggleMockMode, setScenario } = useMockMode();
+
+  // Initialize hooks with mock mode support
   const {
     data: sensorData,
     isAvailable: sensorsAvailable,
     start: startSensors,
     stop: stopSensors,
-  } = useSensorData({ enabled: scanState === 'scanning' });
+  } = useSensorData({ 
+    enabled: scanState === 'scanning',
+    mockMode: isMockMode,
+    mockScenario: mockScenario as any,
+  });
 
   const {
     location,
@@ -39,7 +50,11 @@ export default function ScanScreen() {
     startTracking,
     stopTracking,
     clearHistory,
-  } = useLocation({ enabled: scanState === 'scanning' });
+  } = useLocation({ 
+    enabled: scanState === 'scanning',
+    mockMode: isMockMode,
+    mockScenario: mockScenario as any,
+  });
 
   const { currentRoughness } = useRoughness({
     enabled: scanState === 'scanning',
@@ -56,6 +71,13 @@ export default function ScanScreen() {
 
     return () => clearInterval(interval);
   }, [scanState, scanStartTime]);
+
+  // Initialize first location when tracking starts
+  useEffect(() => {
+    if (scanState === 'scanning' && location && !lastSegmentLocation) {
+      setLastSegmentLocation(location);
+    }
+  }, [scanState, location, lastSegmentLocation]);
 
   // Create new segment when roughness is calculated
   useEffect(() => {
@@ -139,7 +161,7 @@ export default function ScanScreen() {
     setScanDuration(0);
     setSegments([]);
     setAllRoughnessScores([]);
-    setLastSegmentLocation(location);
+    setLastSegmentLocation(null);
     clearHistory();
     
     await startTracking();
@@ -181,12 +203,11 @@ export default function ScanScreen() {
           }
           setScanState('idle');
           setCurrentSessionId(null);
-          setSegments([]);
-          setAllRoughnessScores([]);
           setScanDuration(0);
           stopTracking();
           stopSensors();
           clearHistory();
+          // Note: segments remain visible for inspection
         },
       },
       {
@@ -217,9 +238,8 @@ export default function ScanScreen() {
             {
               text: 'OK',
               onPress: () => {
-                setSegments([]);
-                setAllRoughnessScores([]);
                 clearHistory();
+                // Note: segments remain visible for inspection
               },
             },
           ]);
@@ -230,33 +250,126 @@ export default function ScanScreen() {
 
 
   return (
-    <View style={styles.container}>
-      {/* Stats display */}
-      <ScanStats
-        roughness={currentRoughness}
-        distance={totalDistance}
-        speed={location?.speed}
-        duration={scanDuration}
-      />
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        {/* Stats display */}
+        <ScanStats
+          roughness={currentRoughness}
+          distance={totalDistance}
+          speed={location?.speed}
+          duration={scanDuration}
+        />
 
-      {/* Map */}
-      <RoadMapView
-        currentLocation={location}
-        segments={segments}
-        followUser={scanState === 'scanning'}
-      />
+        {/* Map */}
+        <RoadMapView
+          currentLocation={location}
+          segments={segments}
+          followUser={scanState === 'scanning'}
+        />
+      </View>
 
-      {/* Controls */}
-      <ScanControls
-        isScanning={scanState !== 'idle'}
-        isPaused={scanState === 'paused'}
-        onStart={handleStart}
-        onPause={handlePause}
-        onResume={handleResume}
-        onStop={handleStop}
-        disabled={!sensorsAvailable}
-      />
-    </View>
+      {/* Controls - positioned at bottom */}
+      <View style={styles.controlsContainer}>
+        <ScanControls
+          isScanning={scanState !== 'idle'}
+          isPaused={scanState === 'paused'}
+          onStart={handleStart}
+          onPause={handlePause}
+          onResume={handleResume}
+          onStop={handleStop}
+          disabled={!sensorsAvailable}
+        />
+      </View>
+
+      {/* Dev Mode Button */}
+      <TouchableOpacity
+        style={styles.devButton}
+        onPress={() => setShowDevMenu(true)}
+        onLongPress={async () => {
+          const newMode = await toggleMockMode();
+          Alert.alert(
+            'Dev Mode',
+            newMode ? 'Mock mode enabled' : 'Mock mode disabled'
+          );
+        }}
+      >
+        <Text style={styles.devButtonText}>
+          {isMockMode ? '🧪 DEV' : '⚙️'}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Dev Menu Modal */}
+      <Modal
+        visible={showDevMenu}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowDevMenu(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Development Mode</Text>
+
+            <View style={styles.devSection}>
+              <Text style={styles.sectionTitle}>Mode</Text>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  isMockMode && styles.toggleButtonActive,
+                ]}
+                onPress={async () => {
+                  const newMode = await toggleMockMode();
+                  Alert.alert(
+                    'Dev Mode',
+                    newMode
+                      ? 'Mock mode enabled - using simulated data'
+                      : 'Mock mode disabled - using real sensors'
+                  );
+                }}
+              >
+                <Text
+                  style={[
+                    styles.toggleButtonText,
+                    isMockMode && styles.toggleButtonTextActive,
+                  ]}
+                >
+                  {isMockMode ? '✓ Mock Mode Active' : 'Real Sensors'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {isMockMode && (
+              <View style={styles.devSection}>
+                <Text style={styles.sectionTitle}>Test Scenarios</Text>
+                <ScrollView style={styles.scenarioList}>
+                  {Object.entries(testScenarios).map(([key, scenario]) => (
+                    <TouchableOpacity
+                      key={key}
+                      style={[
+                        styles.scenarioButton,
+                        mockScenario === key && styles.scenarioButtonActive,
+                      ]}
+                      onPress={() => setScenario(key)}
+                    >
+                      <Text style={styles.scenarioName}>{scenario.name}</Text>
+                      <Text style={styles.scenarioDescription}>
+                        {scenario.description}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowDevMenu(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
@@ -264,5 +377,119 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  content: {
+    flex: 1,
+  },
+  controlsContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+  },
+  devButton: {
+    position: 'absolute',
+    top: 50,
+    right: 16,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  devButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  devSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  toggleButton: {
+    backgroundColor: Colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  toggleButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  toggleButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  scenarioList: {
+    maxHeight: 300,
+  },
+  scenarioButton: {
+    backgroundColor: Colors.surface,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  scenarioButtonActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary + '10',
+  },
+  scenarioName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  scenarioDescription: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  closeButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

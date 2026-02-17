@@ -5,9 +5,59 @@
 
 set -e
 
+# Function to cleanup previous run sessions
+cleanup_previous_session() {
+    echo "🧹 Cleaning up from previous session..."
+    
+    # Kill any running Metro bundler processes
+    if pgrep -f "expo start" > /dev/null 2>&1; then
+        echo "  • Stopping running Expo processes..."
+        pkill -f "expo start" 2>/dev/null || true
+    fi
+    
+    if pgrep -f "react-native start" > /dev/null 2>&1; then
+        echo "  • Stopping React Native Metro bundler..."
+        pkill -f "react-native start" 2>/dev/null || true
+    fi
+    
+    # Clear Metro bundler cache
+    if [ -d "mobile/.expo" ]; then
+        echo "  • Clearing Expo cache..."
+        rm -rf mobile/.expo
+    fi
+    
+    # Clear watchman cache if watchman is installed
+    if command_exists watchman; then
+        echo "  • Clearing watchman cache..."
+        watchman watch-del-all 2>/dev/null || true
+    fi
+    
+    # Clear temporary build files
+    if [ -d "mobile/ios/build" ]; then
+        echo "  • Clearing iOS build artifacts..."
+        rm -rf mobile/ios/build
+    fi
+    
+    if [ -d "mobile/android/app/build" ]; then
+        echo "  • Clearing Android build artifacts..."
+        rm -rf mobile/android/app/build
+    fi
+    
+    echo "✅ Cleanup complete"
+    echo ""
+}
+
 echo "🚗 RoadScan Development Helper"
 echo "================================"
 echo ""
+
+# Check if --no-cleanup flag is passed
+if [[ "$*" != *"--no-cleanup"* ]]; then
+    cleanup_previous_session
+else
+    echo "⏩ Skipping cleanup (--no-cleanup flag detected)"
+    echo ""
+fi
 
 # Function to check if a command exists
 command_exists() {

@@ -219,6 +219,36 @@ class SyncService {
   }
 
   /**
+   * Get segments for multiple sessions (for map overlay)
+   */
+  async getSegmentsForSessions(sessionIds: string[]) {
+    const allSegments = [];
+    
+    for (const sessionId of sessionIds) {
+      const segments = await this.getSessionSegments(sessionId);
+      // Add color based on roughness
+      const coloredSegments = segments.map((seg: any) => ({
+        ...seg,
+        color: this.getRoughnessColor(seg.average_roughness),
+      }));
+      allSegments.push(...coloredSegments);
+    }
+    
+    return allSegments;
+  }
+
+  /**
+   * Get color for roughness score
+   */
+  private getRoughnessColor(roughness: number): string {
+    if (roughness < 20) return '#22c55e'; // Excellent - green
+    if (roughness < 40) return '#84cc16'; // Good - lime
+    if (roughness < 60) return '#eab308'; // Fair - yellow
+    if (roughness < 80) return '#f97316'; // Poor - orange
+    return '#ef4444'; // Very Poor - red
+  }
+
+  /**
    * Delete scan session (both local and cloud)
    */
   async deleteScanSession(sessionId: string): Promise<boolean> {

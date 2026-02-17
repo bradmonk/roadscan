@@ -5,7 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../../constants';
 
 interface FAQItem {
@@ -83,6 +85,31 @@ export default function HelpScreen() {
     setExpandedIndex(expandedIndex === index ? null : index);
   };
 
+  const handleRestartOnboarding = () => {
+    Alert.alert(
+      'Restart Tutorial',
+      'This will restart the onboarding tutorial. You will need to close and reopen the app to see it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restart',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('hasCompletedOnboarding');
+              Alert.alert(
+                'Tutorial Reset',
+                'Please close and reopen the app to view the onboarding tutorial again.'
+              );
+            } catch (error) {
+              console.error('Error resetting onboarding:', error);
+              Alert.alert('Error', 'Failed to reset tutorial');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -155,6 +182,13 @@ export default function HelpScreen() {
           For additional support or to report issues, please visit our GitHub repository
           or contact support through the app settings.
         </Text>
+        
+        <TouchableOpacity 
+          style={styles.restartButton} 
+          onPress={handleRestartOnboarding}
+        >
+          <Text style={styles.restartButtonText}>🔄 Restart Tutorial</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -285,5 +319,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
+    marginBottom: 16,
+  },
+  restartButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  restartButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

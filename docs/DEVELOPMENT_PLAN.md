@@ -28,11 +28,29 @@
   - Account management (profile, phone/vehicle info)
   - See: `docs/PHASE5-6_SUMMARY.md`
 
-### 🚧 Current Phase: Phase 7 - Resources & Help Content
+- **Phase 6-7**: History & Graphs - Advanced Features (Week 7-9) ✅
+  - Checkbox selection for session overlay
+  - Map visualization of selected sessions
+  - Search/filter by date
+  - Roughness histogram distribution
+  - Time-series roughness chart
+  - Speed distribution chart
+  - Detailed summary statistics
+  - CSV export functionality
+  - See: `docs/PHASE6-7_COMPLETION.md`
+
+- **Phase 7** (renumbered as Phase 8): Resources, Help & Onboarding (Week 9) ✅
+  - Resources screen with external links
+  - Help/FAQ documentation with 10 questions
+  - Interactive onboarding tutorial (5 slides)
+  - First-launch detection with AsyncStorage
+  - Tutorial restart capability
+  - See: `docs/PHASE7_SUMMARY.md`
+
+### 🚧 Current Phase: Phase 8 (formerly 9) - Polish & UX Improvements
 
 ### 📋 Remaining Phases
 
-- **Phase 7**: Resources & Help Pages (Week 9)
 - **Phase 8**: Polish & UX Improvements (Week 10-11)
 - **Phase 9**: Algorithm Calibration (Week 12)
 - **Phase 10**: Admin Dashboard (Week 13-14)
@@ -255,6 +273,8 @@ function calculateRoughnessScore(accelerometerData) {
 - ✅ Delete functionality
 - ✅ Search/filter by date
 
+**Status:** Complete ✅ - See `docs/PHASE6-7_COMPLETION.md`
+
 ### Phase 7: Graphs & Statistics (Week 8-9)
 **Deliverables:**
 - ✅ Weekly distance bar chart
@@ -264,7 +284,8 @@ function calculateRoughnessScore(accelerometerData) {
 - ✅ Summary statistics (total distance, avg speed, roughest road)
 - ✅ Export data to CSV
 
-**Chart Library:** Victory Native or react-native-chart-kit
+**Chart Library:** Victory Native or react-native-chart-kit  
+**Status:** Complete ✅ - See `docs/PHASE6-7_COMPLETION.md`
 
 ### Phase 8: Resources, Help & Account Pages (Week 9-10)
 **Deliverables:**

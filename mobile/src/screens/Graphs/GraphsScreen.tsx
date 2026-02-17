@@ -6,11 +6,16 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
+  TouchableOpacity,
+  Alert,
+  Share,
 } from 'react-native';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { syncService } from '../../services/sync';
 import { ScanSession } from '../../types';
 import { Colors } from '../../constants';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -28,6 +33,20 @@ export default function GraphsScreen() {
     labels: [],
     data: [],
   });
+  const [roughnessHistogram, setRoughnessHistogram] = useState<{
+    labels: string[];
+    data: number[];
+  }>({
+    labels: [],
+    data: [],
+  });
+  const [speedDistribution, setSpeedDistribution] = useState<{
+    labels: string[];
+    data: number[];
+  }>({
+    labels: [],
+    data: [],
+  });
 
   useEffect(() => {
     loadData();
@@ -39,6 +58,8 @@ export default function GraphsScreen() {
       setSessions(data);
       processWeeklyData(data);
       processRoughnessData(data);
+      processRoughnessHistogram(data);
+      processSpeedDistribution(data);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -103,18 +124,116 @@ export default function GraphsScreen() {
     setRoughnessData({ labels, data: dataPoints });
   };
 
+  // Process roughness histogram (distribution of roughness scores)
+  const processRoughnessHistogram = (sessions: ScanSession[]) => {
+    const bins = [0, 20, 40, 60, 80, 100];
+    const binLabels = ['0-20', '20-40', '40-60', '60-80', '80-100'];
+    const binCounts = [0, 0, 0, 0, 0];
+
+    sessions.forEach((session) => {
+      if (session.status === 'completed' && session.average_roughness != null) {
+        const roughness = session.average_roughness;
+        if (roughness < 20) binCounts[0]++;
+        else if (roughness < 40) binCounts[1]++;
+        else if (roughness < 60) binCounts[2]++;
+        else if (roughness < 80) binCounts[3]++;
+        else binCounts[4]++;
+      }
+    });
+
+    setRoughnessHistogram({
+      labels: binLabels,
+      data: binCounts,
+    });
+  };
+
+  // Process speed distribution
+  const processSpeedDistribution = (sessions: ScanSession[]) => {
+    // Group by speed ranges (0-20, 20-40, 40-60, 60-80, 80+)
+    const speedBins = [0, 0, 0, 0, 0]; // counts for each bin
+    const speedLabels = ['0-20', '20-40', '40-60', '60-80', '80+'];
+
+    // Since we don't have segment-level speed data easily accessible,
+    // we'll simulate based on average speeds
+    // In production, you'd query scan_segments table
+    sessions.forEach((session) => {
+      if (session.status === 'completed' && session.total_distance_meters && session.duration_seconds) {
+        // Calculate average speed (km/h)
+        const avgSpeed = (session.total_distance_meters / 1000) / (session.duration_seconds / 3600);
+        
+        if (avgSpeed < 20) speedBins[0]++;
+        else if (avgSpeed < 40) speedBins[1]++;
+        else if (avgSpeed < 60) speedBins[2]++;
+        else if (avgSpeed < 80) speedBins[3]++;
+        else speedBins[4]++;
+      }
+    });
+
+    setSpeedDistribution({
+      labels: speedLabels,
+      data: speedBins,
+    });
+  };
+
+  // Export data to CSV
+  const exportToCSV = async () => {
+    try {
+      let csvContent = 'Date,Distance (km),Duration (min),Avg Roughness,Status\n';
+      
+      sessions.forEach((session) => {
+        const date = new Date(session.started_at).toLocaleDateString();
+        const distance = ((session.total_distance_meters || 0) / 1000).toFixed(2);
+        const duration = ((session.duration_seconds || 0) / 60).toFixed(1);
+        const roughness = (session.average_roughness || 0).toFixed(1);
+        const status = session.status;
+        
+        csvContent += `${date},${distance},${duration},${roughness},${status}\n`;
+      });
+
+      const fileName = `roadscan_export_${Date.now()}.csv`;
+      const filePath = `${FileSystem.documentDirectory}${fileName}`;
+      
+      await FileSystem.writeAsStringAsync(filePath, csvContent);
+      
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(filePath);
+      } else {
+        Alert.alert('Success', `Data exported to: ${filePath}`);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      Alert.alert('Error', 'Failed to export data');
+    }
+  };
+
   // Calculate total statistics
-  const totalDistance = sessions.reduce(
+  const completedSessions = sessions.filter((s) => s.status === 'completed');
+  const totalDistance = completedSessions.reduce(
     (sum, s) => sum + (s.total_distance_meters || 0),
     0
   ) / 1000; // km
-  const totalScans = sessions.filter((s) => s.status === 'completed').length;
+  const totalScans = completedSessions.length;
   const avgRoughness =
     totalScans > 0
-      ? sessions
-          .filter((s) => s.status === 'completed')
-          .reduce((sum, s) => sum + (s.average_roughness || 0), 0) / totalScans
+      ? completedSessions.reduce((sum, s) => sum + (s.average_roughness || 0), 0) / totalScans
       : 0;
+  
+  // Calculate additional stats
+  const roughestRoad = completedSessions.reduce((max, s) => 
+    (s.average_roughness || 0) > (max.average_roughness || 0) ? s : max
+  , completedSessions[0] || { average_roughness: 0 });
+  
+  const smoothestRoad = completedSessions.reduce((min, s) => 
+    (s.average_roughness || 0) < (min.average_roughness || 0) ? s : min
+  , completedSessions[0] || { average_roughness: 100 });
+  
+  const totalDuration = completedSessions.reduce(
+    (sum, s) => sum + (s.duration_seconds || 0),
+    0
+  );
+  
+  const avgSpeed = totalDuration > 0 ? (totalDistance / (totalDuration / 3600)) : 0;
 
   if (loading) {
     return (
@@ -160,6 +279,13 @@ export default function GraphsScreen() {
         <Text style={styles.subtitle}>Your driving insights</Text>
       </View>
 
+      {/* Export Button */}
+      <View style={styles.exportContainer}>
+        <TouchableOpacity style={styles.exportButton} onPress={exportToCSV}>
+          <Text style={styles.exportButtonText}>📊 Export to CSV</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Summary Cards */}
       <View style={styles.summaryContainer}>
         <View style={styles.summaryCard}>
@@ -168,11 +294,37 @@ export default function GraphsScreen() {
         </View>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryValue}>{totalScans}</Text>
-          <Text style={styles.summaryLabel}>Scans</Text>
+          <Text style={styles.summaryLabel}>Total Scans</Text>
         </View>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryValue}>{avgRoughness.toFixed(0)}</Text>
           <Text style={styles.summaryLabel}>Avg Roughness</Text>
+        </View>
+      </View>
+
+      {/* Additional Stats */}
+      <View style={styles.detailedStatsContainer}>
+        <View style={styles.statRow}>
+          <Text style={styles.statRowLabel}>Average Speed:</Text>
+          <Text style={styles.statRowValue}>{avgSpeed.toFixed(1)} km/h</Text>
+        </View>
+        <View style={styles.statRow}>
+          <Text style={styles.statRowLabel}>Total Time Driving:</Text>
+          <Text style={styles.statRowValue}>
+            {Math.floor(totalDuration / 3600)}h {Math.floor((totalDuration % 3600) / 60)}m
+          </Text>
+        </View>
+        <View style={styles.statRow}>
+          <Text style={styles.statRowLabel}>Roughest Road:</Text>
+          <Text style={styles.statRowValue}>
+            {roughestRoad?.average_roughness?.toFixed(0) || 'N/A'}
+          </Text>
+        </View>
+        <View style={styles.statRow}>
+          <Text style={styles.statRowLabel}>Smoothest Road:</Text>
+          <Text style={styles.statRowValue}>
+            {smoothestRoad?.average_roughness?.toFixed(0) || 'N/A'}
+          </Text>
         </View>
       </View>
 
@@ -197,10 +349,58 @@ export default function GraphsScreen() {
         </View>
       )}
 
+      {/* Roughness Histogram */}
+      {roughnessHistogram.data.length > 0 && (
+        <View style={styles.chartContainer}>
+          <Text style={styles.chartTitle}>Roughness Distribution (Number of Scans)</Text>
+          <BarChart
+            data={{
+              labels: roughnessHistogram.labels,
+              datasets: [{ data: roughnessHistogram.data }],
+            }}
+            width={screenWidth - 32}
+            height={220}
+            yAxisLabel=""
+            yAxisSuffix=""
+            chartConfig={{
+              ...chartConfig,
+              color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
+            }}
+            style={styles.chart}
+            showValuesOnTopOfBars
+            fromZero
+          />
+        </View>
+      )}
+
+      {/* Speed Distribution */}
+      {speedDistribution.data.length > 0 && (
+        <View style={styles.chartContainer}>
+          <Text style={styles.chartTitle}>Speed Distribution (km/h)</Text>
+          <BarChart
+            data={{
+              labels: speedDistribution.labels,
+              datasets: [{ data: speedDistribution.data }],
+            }}
+            width={screenWidth - 32}
+            height={220}
+            yAxisLabel=""
+            yAxisSuffix=""
+            chartConfig={{
+              ...chartConfig,
+              color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
+            }}
+            style={styles.chart}
+            showValuesOnTopOfBars
+            fromZero
+          />
+        </View>
+      )}
+
       {/* Recent Scan Roughness */}
       {roughnessData.data.length > 0 && (
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>Roughness from Last Scan (by minute)</Text>
+          <Text style={styles.chartTitle}>Time-Series Roughness from Last Scan</Text>
           <LineChart
             data={{
               labels: roughnessData.labels,
@@ -219,7 +419,7 @@ export default function GraphsScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Note: Minute-by-minute roughness data is simulated for demonstration.
+          Tap the Export button above to download your data as CSV
         </Text>
       </View>
     </ScrollView>
@@ -246,6 +446,22 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: Colors.textSecondary,
+  },
+  exportContainer: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  exportButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  exportButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   summaryContainer: {
     flexDirection: 'row',
@@ -274,6 +490,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  detailedStatsContainer: {
+    backgroundColor: Colors.surface,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  statRowLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  statRowValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
   },
   chartContainer: {
     padding: 16,

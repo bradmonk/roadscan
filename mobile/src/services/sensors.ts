@@ -164,6 +164,18 @@ export class SensorService {
       });
     }
   }
+
+  /**
+   * Store mock sensor data (for development/testing)
+   * This allows mock data to be stored in the buffer for roughness calculation
+   */
+  storeMockData(data: SensorData): void {
+    this.accelerometerData.push(data.accelerometer);
+    this.gyroscopeData.push(data.gyroscope);
+    
+    // Keep buffer size manageable (keep last 10 seconds of data)
+    this.trimBuffers(10000);
+  }
 }
 
 // Singleton instance

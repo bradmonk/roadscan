@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../types';
 
 type HomeScreenProps = {
@@ -8,12 +9,12 @@ type HomeScreenProps = {
 };
 
 const tiles = [
-  { id: 'Scan', title: 'Scan', icon: '📡', color: '#3b82f6' },
-  { id: 'History', title: 'History', icon: '📜', color: '#8b5cf6' },
-  { id: 'Graphs', title: 'Graphs', icon: '📊', color: '#10b981' },
-  { id: 'Resources', title: 'Resources', icon: '🔗', color: '#f59e0b' },
-  { id: 'Help', title: 'Help', icon: '❓', color: '#ef4444' },
-  { id: 'Account', title: 'Account', icon: '👤', color: '#6366f1' },
+  { id: 'Scan', title: 'Scan', icon: 'scan' as const, color: '#eb5160' }, // lobster pink
+  { id: 'History', title: 'History', icon: 'time-outline' as const, color: '#9ab8b2' }, // ash grey
+  { id: 'Graphs', title: 'Graphs', icon: 'stats-chart' as const, color: '#071013' }, // ink black
+  { id: 'Resources', title: 'Resources', icon: 'folder-open-outline' as const, color: '#dfd0c1' }, // almond cream
+  { id: 'Help', title: 'Help', icon: 'help-circle-outline' as const, color: '#9ab8b2' }, // ash grey
+  { id: 'Account', title: 'Account', icon: 'person-outline' as const, color: '#eb5160' }, // lobster pink
 ];
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
@@ -29,7 +30,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             style={[styles.tile, { backgroundColor: tile.color }]}
             onPress={() => navigation.navigate(tile.id as keyof RootStackParamList)}
           >
-            <Text style={styles.icon}>{tile.icon}</Text>
+            <Ionicons name={tile.icon} size={48} color="#fff" style={styles.icon} />
             <Text style={styles.tileTitle}>{tile.title}</Text>
           </TouchableOpacity>
         ))}
@@ -41,19 +42,19 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#dfe2e2', // alabaster grey
     padding: 20,
   },
   welcome: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#071013', // ink black
     textAlign: 'center',
     marginTop: 20,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    color: '#9ab8b2', // ash grey
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 30,
@@ -78,7 +79,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   icon: {
-    fontSize: 48,
     marginBottom: 12,
   },
   tileTitle: {
